@@ -49,15 +49,12 @@ export default function Home() {
       .then(response => ownerList = response)
       .catch(err => console.error(err))
 
-    console.log(ownerList)
 
     const ownerAddressesList = ownerList.ownerAddresses.map(owner => owner.ownerAddress);
+    setOwners(ownerList)
 
-    const list: OwnersState = {
-      owners: ownerAddressesList
-    }
 
-    const csvData = owners.ownerAddresses.flatMap(owner => (
+    const csvData = ownerList.ownerAddresses.flatMap(owner => (
       owner.tokenBalances.map(token => ({
         'Owner Address': owner.ownerAddress,
         'Token ID': token.tokenId,
@@ -68,12 +65,10 @@ export default function Home() {
     setCSVData(csvData)
 
 
-    setOwners(ownerList)
-
 
     setFetchedOwners(true)
-    setShowDownload(true)
-
+    
+    exportToCsv()
 
   };
 
@@ -94,6 +89,8 @@ export default function Home() {
       { label: 'Token ID', key: 'Token ID' },
       { label: 'Balance', key: 'Balance' },
     ];
+    setShowDownload(true)
+
   }
 
   if (fetchedOwners) {
