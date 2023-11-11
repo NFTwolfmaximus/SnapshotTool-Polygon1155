@@ -2,39 +2,79 @@ import Image from 'next/image'
 import { Inter } from 'next/font/google'
 import React, { useState } from 'react'
 import { Alchemy } from 'alchemy-sdk';
+import { CSVLink } from 'react-csv';
+import { Data } from 'react-csv/lib/core';
 
 const inter = Inter({ subsets: ['latin'] })
 
-type Owner = string;
 
 type OwnersState = {
-  owners: Owner[];
+  owners: string[];
 };
-
 
 
 export default function Home() {
   const [address, setAddress] = useState('empty');
   const [fetchedOwners, setFetchedOwners] = useState(false);
-  const [owners, setOwners] = useState<OwnersState>({ owners: [] });
+  const [owners, setOwners] = useState({ ownerAddresses: [{ ownerAddress: '', tokenBalances: [{ tokenId: '', balance: 0 }] }] });
+  const [csvData, setCSVData] = useState<{
+    'Owner Address': string;
+    'Token ID': string;
+    Balance: number;
+  }[]>([]);
+  const headers = [
+    { label: 'Owner Address', key: 'Owner Address' },
+    { label: 'Token ID', key: 'Token ID' },
+    { label: 'Balance', key: 'Balance' },
+  ];
+
+  const [showDownload, setShowDownload] = useState(false)
   const { Alchemy, Network } = require("alchemy-sdk");
 
   const config = {
     apiKey: process.env.alchemyAPI,
-    network: Network.ETH_MAINNET,
+    network: Network.MATIC_MAINNET,
   };
   const alchemy = new Alchemy(config);
 
   const getList = async () => {
-    // BAYC contract address
-    //const address = "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D";
-
     // Get owners 
-    const ownersList = await alchemy.nft.getOwnersForContract(address, false);
-    setOwners(ownersList)
-    console.log(ownersList.owners)
 
-    setFetchedOwners(true);
+    const options = { method: 'GET', headers: { accept: 'application/json' } };
+    let ownerList = { ownerAddresses: [{ ownerAddress: '', tokenBalances: [{ tokenId: '', balance: 0 }] }] }
+
+
+    await fetch('https://polygon-mainnet.g.alchemy.com/nft/v2/xbf3_lEczk7H7M3lwzCrO89OmwTSn2gG/getOwnersForCollection?contractAddress=0xF8e930E79C59f973d432EaBF67c0f9618405a287&withTokenBalances=true', options)
+      .then(response => response.json())
+      .then(response => ownerList = response)
+      .catch(err => console.error(err))
+
+    console.log(ownerList)
+
+    const ownerAddressesList = ownerList.ownerAddresses.map(owner => owner.ownerAddress);
+
+    const list: OwnersState = {
+      owners: ownerAddressesList
+    }
+
+    const csvData = owners.ownerAddresses.flatMap(owner => (
+      owner.tokenBalances.map(token => ({
+        'Owner Address': owner.ownerAddress,
+        'Token ID': token.tokenId,
+        'Balance': token.balance,
+      }))
+    ));
+
+    setCSVData(csvData)
+
+
+    setOwners(ownerList)
+
+
+    setFetchedOwners(true)
+    setShowDownload(true)
+
+
   };
 
   const handleChange = (event: { target: { value: any; }; }) => {
@@ -43,25 +83,17 @@ export default function Home() {
   }
 
   const exportToCsv = () => {
-    const filename = 'Snapshot'
-    const separator = ',';
-    let csv = '';
-    // Add rows to the CSV string
-    owners.owners.forEach((value) => {
-      const cell = value == null ? '' : value.toString();
-      csv += cell + separator;
-    });
-  
-    // Download the CSV file
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvData = owners.ownerAddresses.map(owner => ({
+      'Owner Address': owner.ownerAddress,
+      'Token ID': owner.tokenBalances.map(token => token.tokenId).join(','),
+      'Balance': owner.tokenBalances.map(token => token.balance).join(','),
+    }));
+
+    const headers = [
+      { label: 'Owner Address', key: 'Owner Address' },
+      { label: 'Token ID', key: 'Token ID' },
+      { label: 'Balance', key: 'Balance' },
+    ];
   }
 
   if (fetchedOwners) {
@@ -70,7 +102,7 @@ export default function Home() {
         className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
       >
         <div>
-          Welcome to the Snapshot tool! This is available for the ETHEREUM chain only.
+          Welcome to the Snapshot tool! This is available for the POLYGON chain only.
         </div>
 
         <div>
@@ -90,19 +122,23 @@ export default function Home() {
           </div>
 
 
-          <div className='pr-3'>
-            <button className='rounded-full bg-blue-500 p-3 hover:bg-sky-700'
-              onClick={() => exportToCsv()} style={{ color: 'white' }}>
-
-              Export List as .csv
-
-            </button>
-          </div>
+          {showDownload &&(
+            <CSVLink className='rounded-full bg-blue-500 p-3 hover:bg-sky-700' data={csvData} headers={headers} filename={'ownerList.csv'}>
+              Export to CSV
+            </CSVLink>
+          )}
         </div>
 
         <div>
-          {owners.owners.map((item) => (
-            <div key={item}>{item}</div>
+          {owners.ownerAddresses.map(owner => (
+            <div key={owner.ownerAddress}>
+              <p>Owner Address: {owner.ownerAddress}</p>
+              <div>
+                {owner.tokenBalances.map(token => (
+                  <p key={token.tokenId}>Token ID: {token.tokenId}, Balance: {token.balance}</p>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
@@ -116,7 +152,7 @@ export default function Home() {
       className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
     >
       <div>
-        Welcome to the Snapshot tool! This is available for the ETHEREUM chain only.
+        Welcome to the Snapshot tool! This is available for the Polygon chain only.
       </div>
 
       <div>
