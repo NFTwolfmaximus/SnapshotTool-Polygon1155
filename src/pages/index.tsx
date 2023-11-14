@@ -35,6 +35,7 @@ export default function Home() {
     apiKey: process.env.alchemyAPI,
     network: Network.MATIC_MAINNET,
   };
+ 
   const alchemy = new Alchemy(config);
 
   const getList = async () => {
@@ -44,7 +45,8 @@ export default function Home() {
     let ownerList = { ownerAddresses: [{ ownerAddress: '', tokenBalances: [{ tokenId: '', balance: 0 }] }] }
 
 
-    await fetch(`https://polygon-mainnet.g.alchemy.com/nft/v2/xbf3_lEczk7H7M3lwzCrO89OmwTSn2gG/getOwnersForCollection?contractAddress=${address}&withTokenBalances=true`, options)
+
+    await fetch(`https://polygon-mainnet.g.alchemy.com/nft/v2/${alchemy.config.apiKey}/getOwnersForCollection?contractAddress=${address}&withTokenBalances=true`, options)
       .then(response => response.json())
       .then(response => ownerList = response)
       .catch(err => console.error(err))
